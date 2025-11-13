@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
+from PIL import ImageTk, Image
 
 class Chess:
     def __init__(self, time_limit=180):
@@ -7,6 +8,7 @@ class Chess:
         self.root.title("Шахматы")
         self.time_limit = None
         self.time_entry = None
+        self.piece_images = {}
         self.player_time = {"white": time_limit, "black": time_limit}
         self.current_player = "white"
         self.selected_piece = None
@@ -158,7 +160,47 @@ class Chess:
                         anchor = 'ne'
                     )
 
+        self._load_piece_images()
+        self._draw_pieces(canvas, cell_size)
         board_window.mainloop()
+
+    def _load_piece_images(self):
+        piece_names = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king']
+        colors = ['white', 'black']
+
+        images = {}
+        for color in colors:
+            for piece in piece_names:
+                img_path = f"pieces/{color}_{piece}.png"
+                img = Image.open(img_path)
+                img = img.resize((50, 50), Image.Resampling.LANCZOS)
+                images[f"{color}_{piece}"] = ImageTk.PhotoImage(img)
+        self.piece_images = images
+
+    def _draw_pieces(self, canvas, cell_size):
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+                if piece is not None:
+                    x = col * cell_size + 5
+                    y = row * cell_size + 5
+
+                    if piece[:2] == "p_":
+                        img_key = f"{piece[2:]}_pawn"
+                    elif piece[:2] == "r_":
+                        img_key = f"{piece[2:]}_rook"
+                    elif piece[:2] == "n_":
+                        img_key = f"{piece[2:]}_knight"
+                    elif piece[:2] == "b_":
+                        img_key = f"{piece[2:]}_bishop"
+                    elif piece[:2] == "q_":
+                        img_key = f"{piece[2:]}_queen"
+                    elif piece[:2] == "k_":
+                        img_key = f"{piece[2:]}_king"
+                    else:
+                        raise ValueError(f"Неизвестная фигура: {piece}")
+
+                    canvas.create_image(x, y, image = self.piece_images[img_key], anchor = 'nw')
 
 a = Chess()
 a._setting()
