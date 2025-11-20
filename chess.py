@@ -183,6 +183,7 @@ class Chess:
             for col in range(8):
                 piece = self.board[row][col]
                 if piece != 'No_piece':
+                    img_key = ""
                     x = col * cell_size
                     y = row * cell_size
 
@@ -201,8 +202,87 @@ class Chess:
 
                     canvas.create_image(x, y, image = self.piece_images[img_key], anchor = 'nw')
 
+    def _valid_rook_move(self, row, col, color):
+        piece = []
+        if row != 0:
+            for ch_r in range(1, row + 1):
+                if self.board[row - ch_r][col] == "No_piece":
+                    piece.append((row - ch_r, col))
+                elif self.board[row - ch_r][col][2] != color:
+                    piece.append((row - ch_r, col))
+                    break
+                else:
+                    break
+        if row != 7:
+            for ch_r in range(1, 8 - row):
+                if self.board[row + ch_r][col] == "No_piece":
+                    piece.append((row + ch_r, col))
+                elif self.board[row + ch_r][col][2] != color:
+                    piece.append((row + ch_r, col))
+                    break
+                else:
+                    break
+        if col != 0:
+            for ch_c in range(1, col + 1):
+                if self.board[row][col - ch_c] == "No_piece":
+                    piece.append((row, col - ch_c))
+                elif self.board[row][col - ch_c][2] != color:
+                    piece.append((row, col - ch_c))
+                    break
+                else:
+                    break
+        if col != 7:
+            for ch_c in range(1, 8 - col):
+                if self.board[row][col + ch_c] == "No_piece":
+                    piece.append((row, col + ch_c))
+                elif self.board[row][col + ch_c][2] != color:
+                    piece.append((row, col + ch_c))
+                    break
+                else:
+                    break
+
+        return piece
+
+    def _valid_bishop_move(self, row, col, color):
+        piece = []
+        nw, sw, se, ne = True, True, True, True
+        for ch in range(1, 7):
+            if nw:
+                if row - ch >= 0 and col - ch >= 0 and self.board[row - ch][col - ch] == "No_piece":
+                    piece.append((row - ch, col - ch))
+                elif row - ch >= 0 and col - ch >= 0 and self.board[row - ch][col - ch][2] != color:
+                    piece.append((row - ch, col - ch))
+                    nw = False
+                else:
+                    nw = False
+            if ne:
+                if row - ch >= 0 and col + ch <= 7 and self.board[row - ch][col + ch] == "No_piece":
+                    piece.append((row - ch, col + ch))
+                elif row - ch >= 0 and col + ch <= 7 and self.board[row - ch][col + ch][2] != color:
+                    piece.append((row - ch, col + ch))
+                    ne = False
+                else:
+                    ne = False
+            if se:
+                if row + ch <= 7 and col + ch <= 7 and self.board[row + ch][col + ch] == "No_piece":
+                    piece.append((row + ch, col + ch))
+                elif row + ch <= 7 and col + ch <= 7 and self.board[row + ch][col + ch][2] != color:
+                    piece.append((row + ch, col + ch))
+                    se = False
+                else:
+                    se = False
+            if sw:
+                if row + ch <= 7 and col - ch >= 0 and self.board[row + ch][col - ch] == "No_piece":
+                    piece.append((row + ch, col - ch))
+                elif row + ch <= 7 and col - ch >= 0 and self.board[row + ch][col - ch][2] != color:
+                    piece.append((row + ch, col - ch))
+                    sw = False
+                else:
+                    sw = False
+        return piece
+
     def _valid_moves(self):
-        #self.board[4][4] = 'r_black'
+        #self.board[4][4] = 'q_black'
         valid_moves = deepcopy(self.board)
         for row in range(8):
             for col in range(8):
@@ -245,49 +325,13 @@ class Chess:
                     valid_moves[row][col] = piece
                 elif piece[0] == "r":
                     color = piece[2]
-                    piece = []
-                    if row != 0:
-                        for ch_r in range(1, row+1):
-                            if self.board[row-ch_r][col] == "No_piece":
-                                piece.append((row-ch_r, col))
-                            elif self.board[row-ch_r][col][2] != color:
-                                piece.append((row-ch_r, col))
-                                break
-                            else:
-                                break
-                    if row != 7:
-                        for ch_r in range(1, 8-row):
-                            if self.board[row+ch_r][col] == "No_piece":
-                                piece.append((row+ch_r, col))
-                            elif self.board[row+ch_r][col][2] != color:
-                                piece.append((row+ch_r, col))
-                                break
-                            else:
-                                break
-                    if col != 0:
-                        for ch_c in range(1, col+1):
-                            if self.board[row][col-ch_c] == "No_piece":
-                                piece.append((row, col-ch_c))
-                            elif self.board[row][col-ch_c][2] != color:
-                                piece.append((row, col-ch_c))
-                                break
-                            else:
-                                break
-                    if col != 7:
-                        for ch_c in range(1, 8-col):
-                            if self.board[row][col+ch_c] == "No_piece":
-                                piece.append((row, col+ch_c))
-                            elif self.board[row][col+ch_c][2] != color:
-                                piece.append((row, col+ch_c))
-                                break
-                            else:
-                                break
-
-                    valid_moves[row][col] = piece
+                    valid_moves[row][col] = self._valid_rook_move(row, col, color)
                 elif piece[0] == "b":
-                    pass
+                    color = piece[2]
+                    valid_moves[row][col] = self._valid_bishop_move(row, col, color)
                 elif piece[0] == "q":
-                    pass
+                    color = piece[2]
+                    valid_moves[row][col] = self._valid_rook_move(row, col, color) + self._valid_bishop_move(row, col, color)
                 else:
                     pass
 
