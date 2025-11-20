@@ -1,4 +1,5 @@
 import tkinter as tk
+from copy import deepcopy
 from tkinter import messagebox
 from PIL import ImageTk, Image
 
@@ -11,11 +12,10 @@ class Chess:
         self.piece_images = {}
         self.player_time = {"white": time_limit, "black": time_limit}
         self.current_player = "white"
-        self.selected_piece = None
         self.board = self._initialize_board()
 
     def _initialize_board(self):
-        board = [[None for _ in range(8)] for _ in range(8)]
+        board = [['No_piece' for _ in range(8)] for _ in range(8)]
 
         for col in range(8):
             board[6][col] = "p_white"
@@ -106,7 +106,7 @@ class Chess:
         board_window.title("Шахматы")
         board_window.resizable(False, False)
 
-        cell_size = 60
+        cell_size = 80
 
         canvas_width = 8 * cell_size
         canvas_height = 8 * cell_size
@@ -117,6 +117,7 @@ class Chess:
             height = canvas_height,
             bg = "white"
         )
+        self.canvas = canvas
         canvas.pack()
 
         for row in range(8):
@@ -161,7 +162,7 @@ class Chess:
                     )
 
         self._load_piece_images()
-        self._draw_pieces(canvas, cell_size)
+        self._draw_pieces(canvas)
         board_window.mainloop()
 
     def _load_piece_images(self):
@@ -173,17 +174,17 @@ class Chess:
             for piece in piece_names:
                 img_path = f"pieces/{color}_{piece}.png"
                 img = Image.open(img_path)
-                img = img.resize((50, 50), Image.Resampling.LANCZOS)
+                img = img.resize((80, 80), Image.Resampling.LANCZOS)
                 images[f"{color}_{piece}"] = ImageTk.PhotoImage(img)
         self.piece_images = images
 
-    def _draw_pieces(self, canvas, cell_size):
+    def _draw_pieces(self, canvas, cell_size=80):
         for row in range(8):
             for col in range(8):
                 piece = self.board[row][col]
-                if piece is not None:
-                    x = col * cell_size + 5
-                    y = row * cell_size + 5
+                if piece != 'No_piece':
+                    x = col * cell_size
+                    y = row * cell_size
 
                     if piece[:2] == "p_":
                         img_key = f"{piece[2:]}_pawn"
@@ -197,10 +198,100 @@ class Chess:
                         img_key = f"{piece[2:]}_queen"
                     elif piece[:2] == "k_":
                         img_key = f"{piece[2:]}_king"
-                    else:
-                        raise ValueError(f"Неизвестная фигура: {piece}")
 
                     canvas.create_image(x, y, image = self.piece_images[img_key], anchor = 'nw')
 
+    def _valid_moves(self):
+        #self.board[4][4] = 'r_black'
+        valid_moves = deepcopy(self.board)
+        for row in range(8):
+            for col in range(8):
+                piece = valid_moves[row][col]
+                if piece == 'No_piece':
+                    valid_moves[row][col] = []
+                elif piece == "p_white":
+                    piece = []
+                    if row-1 >= 0 and self.board[row-1][col] == "No_piece":
+                        piece.append((row-1, col))
+                    if col+1 <= 7 and row-1 >= 0 and self.board[row-1][col+1][2] == "b":
+                        piece.append((row-1, col+1))
+                    if col-1 >= 0 and row-1 >= 0 and self.board[row-1][col-1][2] == "b":
+                        piece.append((row-1, col-1))
+                    if row == 6 and self.board[row-1][col] == "No_piece" and self.board[row-2][col] == "No_piece":
+                        piece.append((row-2, col))
+                    valid_moves[row][col] = piece
+                elif piece == "p_black":
+                    piece = []
+                    if row+1 <= 7 and self.board[row+1][col] == "No_piece":
+                        piece.append((row+1, col))
+                    if col-1 >= 0 and row+1 <= 7 and self.board[row+1][col-1][2] == "w":
+                        piece.append((row+1, col-1))
+                    if col+1 <= 7 and row+1 <= 7 and self.board[row+1][col+1][2] == "w":
+                        piece.append((row+1, col+1))
+                    if row == 1 and self.board[row+1][col] == "No_piece" and self.board[row+2][col] == "No_piece":
+                        piece.append((row+2, col))
+                    valid_moves[row][col] = piece
+                elif piece[0] == "n":
+                    color = piece[2]
+                    piece = []
+                    for ch_r in 1, -1, 2, -2:
+                        if abs(ch_r) == 2:
+                            ch_col = [1, -1]
+                        else:
+                            ch_col = [2, -2]
+                        for ch_c in ch_col:
+                            if 0 <= row+ch_r <= 7 and 0 <= col+ch_c <= 7 and self.board[row+ch_r][col+ch_c][2] != color:
+                                piece.append((row+ch_r, col+ch_c))
+                    valid_moves[row][col] = piece
+                elif piece[0] == "r":
+                    color = piece[2]
+                    piece = []
+                    if row != 0:
+                        for ch_r in range(1, row+1):
+                            if self.board[row-ch_r][col] == "No_piece":
+                                piece.append((row-ch_r, col))
+                            elif self.board[row-ch_r][col][2] != color:
+                                piece.append((row-ch_r, col))
+                                break
+                            else:
+                                break
+                    if row != 7:
+                        for ch_r in range(1, 8-row):
+                            if self.board[row+ch_r][col] == "No_piece":
+                                piece.append((row+ch_r, col))
+                            elif self.board[row+ch_r][col][2] != color:
+                                piece.append((row+ch_r, col))
+                                break
+                            else:
+                                break
+                    if col != 0:
+                        for ch_c in range(1, col+1):
+                            if self.board[row][col-ch_c] == "No_piece":
+                                piece.append((row, col-ch_c))
+                            elif self.board[row][col-ch_c][2] != color:
+                                piece.append((row, col-ch_c))
+                                break
+                            else:
+                                break
+                    if col != 7:
+                        for ch_c in range(1, 8-col):
+                            if self.board[row][col+ch_c] == "No_piece":
+                                piece.append((row, col+ch_c))
+                            elif self.board[row][col+ch_c][2] != color:
+                                piece.append((row, col+ch_c))
+                                break
+                            else:
+                                break
+
+                    valid_moves[row][col] = piece
+                elif piece[0] == "b":
+                    pass
+                elif piece[0] == "q":
+                    pass
+                else:
+                    pass
+
+        return valid_moves
 a = Chess()
-a._setting()
+for row in a._valid_moves():
+    print(row)
