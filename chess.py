@@ -11,7 +11,8 @@ class Chess:
         self.time_entry = None
         self.piece_images = {}
         self.player_time = {"white": time_limit, "black": time_limit}
-        self.current_player = "white"
+        self.current_player = "w"
+        self.selected_piece = None
         self.board = self._initialize_board()
 
     def _initialize_board(self):
@@ -82,7 +83,7 @@ class Chess:
         if not time_input:
             self.time_limit = 180
             self.root.destroy()
-            self._draw_board()
+            self._setup_board()
             return
 
         try:
@@ -93,7 +94,7 @@ class Chess:
 
             self.time_limit = time_per_player
             self.root.destroy()
-            self._draw_board()
+            self._setup_board()
 
         except ValueError:
             messagebox.showerror(
@@ -101,10 +102,11 @@ class Chess:
                 "Пожалуйста, введите корректное число (например, 30)!"
             )
 
-    def _draw_board(self):
-        board_window = tk.Tk()
-        board_window.title("Шахматы")
-        board_window.resizable(False, False)
+    def _setup_board(self):
+        self.board_window = tk.Tk()
+        self.board_window.title("Шахматы")
+        self.board_window.resizable(False, False)
+        self._load_piece_images()
 
         cell_size = 80
 
@@ -112,14 +114,17 @@ class Chess:
         canvas_height = 8 * cell_size
 
         canvas = tk.Canvas(
-            board_window,
-            width = canvas_width,
-            height = canvas_height,
-            bg = "white"
+            self.board_window,
+            width=canvas_width,
+            height=canvas_height,
+            bg="white"
         )
         self.canvas = canvas
         canvas.pack()
+        self.canvas.bind("<Button-1>", self._on_click)
+        self._draw_board()
 
+    def _draw_board(self, cell_size=80):
         for row in range(8):
             for col in range(8):
                 if (row + col) % 2 == 0:
@@ -134,13 +139,13 @@ class Chess:
                 x2 = x1 + cell_size
                 y2 = y1 + cell_size
 
-                canvas.create_rectangle(x1, y1, x2, y2, fill = cell_color, outline = cell_color)
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill = cell_color, outline = cell_color)
 
                 if row == 7:
                     letter = chr(ord('a') + col)
                     text_x = x1 + 3
                     text_y = y1 + cell_size
-                    canvas.create_text(
+                    self.canvas.create_text(
                         text_x,
                         text_y,
                         text = letter,
@@ -152,7 +157,7 @@ class Chess:
                     digit = 8 - row
                     text_x = x1 - 3 + cell_size
                     text_y = y1 + 3
-                    canvas.create_text(
+                    self.canvas.create_text(
                         text_x,
                         text_y,
                         text = str(digit),
@@ -160,10 +165,7 @@ class Chess:
                         fill = text_color,
                         anchor = 'ne'
                     )
-
-        self._load_piece_images()
-        self._draw_pieces(canvas)
-        board_window.mainloop()
+                self._draw_piece(row, col)
 
     def _load_piece_images(self):
         piece_names = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king']
@@ -178,29 +180,26 @@ class Chess:
                 images[f"{color}_{piece}"] = ImageTk.PhotoImage(img)
         self.piece_images = images
 
-    def _draw_pieces(self, canvas, cell_size=80):
-        for row in range(8):
-            for col in range(8):
-                piece = self.board[row][col]
-                if piece != 'No_piece':
-                    img_key = ""
-                    x = col * cell_size
-                    y = row * cell_size
+    def _draw_piece(self, row, col, cell_size=80):
+        piece = self.board[row][col]
+        if piece != 'No_piece':
+            img_key = ""
+            x = col * cell_size
+            y = row * cell_size
+            if piece[:2] == "p_":
+                img_key = f"{piece[2:]}_pawn"
+            elif piece[:2] == "r_":
+                img_key = f"{piece[2:]}_rook"
+            elif piece[:2] == "n_":
+                img_key = f"{piece[2:]}_knight"
+            elif piece[:2] == "b_":
+                img_key = f"{piece[2:]}_bishop"
+            elif piece[:2] == "q_":
+                img_key = f"{piece[2:]}_queen"
+            elif piece[:2] == "k_":
+                img_key = f"{piece[2:]}_king"
 
-                    if piece[:2] == "p_":
-                        img_key = f"{piece[2:]}_pawn"
-                    elif piece[:2] == "r_":
-                        img_key = f"{piece[2:]}_rook"
-                    elif piece[:2] == "n_":
-                        img_key = f"{piece[2:]}_knight"
-                    elif piece[:2] == "b_":
-                        img_key = f"{piece[2:]}_bishop"
-                    elif piece[:2] == "q_":
-                        img_key = f"{piece[2:]}_queen"
-                    elif piece[:2] == "k_":
-                        img_key = f"{piece[2:]}_king"
-
-                    canvas.create_image(x, y, image = self.piece_images[img_key], anchor = 'nw')
+            self.canvas.create_image(x, y, image=self.piece_images[img_key], anchor='nw')
 
     def _valid_rook_move(self, row, col, color):
         piece = []
@@ -336,6 +335,33 @@ class Chess:
                     pass
 
         return valid_moves
+
+    def _on_click(self, event):
+        col = event.x // 80
+        row = event.y // 80
+
+        if not (0 <= row < 8 and 0 <= col < 8):
+            return
+
+        piece = self.board[row][col]
+
+        if self.selected_piece is None:
+            if piece != "No_piece" and piece[2] == self.current_player:
+                self.selected_piece = (row, col)
+                self.canvas.delete("all")
+                self._draw_board()
+                self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
+                self._draw_piece(row, col)
+        elif self.selected_piece == (row, col):
+            self.canvas.delete("all")
+            self._draw_board()
+            self.selected_piece = None
+        elif piece[2] == self.current_player:
+            self.canvas.delete("all")
+            self._draw_board()
+            self.canvas.create_rectangle(col * 80, row * 80, (col + 1) * 80, (row + 1) * 80, fill="#829769",outline="#829769")
+            self._draw_piece(row, col)
+            self.selected_piece = (row, col)
+
 a = Chess()
-for row in a._valid_moves():
-    print(row)
+a._setting()
