@@ -281,7 +281,7 @@ class Chess:
         return piece
 
     def _valid_moves(self):
-        #self.board[4][4] = 'q_black'
+        #self.board[3][3] = 'q_white'
         valid_moves = deepcopy(self.board)
         for row in range(8):
             for col in range(8):
@@ -332,9 +332,25 @@ class Chess:
                     color = piece[2]
                     valid_moves[row][col] = self._valid_rook_move(row, col, color) + self._valid_bishop_move(row, col, color)
                 else:
-                    pass
+                    valid_moves[row][col] = []
 
         return valid_moves
+
+    def _draw_pos_moves(self, row, col):
+        for (pos_c, pos_r) in self._valid_moves()[row][col]:
+            if self.board[pos_c][pos_r] == "No_piece":
+                self.canvas.create_oval(pos_r * 80 + 30, pos_c * 80 + 30, pos_r * 80 + 50, pos_c * 80 + 50,
+                                        fill="#829769", outline="#829769")
+            else:
+                c = 18
+                self.canvas.create_polygon(pos_r * 80, pos_c * 80, pos_r * 80 + c, pos_c * 80, pos_r * 80,
+                                           pos_c * 80 + c, fill="#829769", outline="#829769")
+                self.canvas.create_polygon(pos_r * 80, (pos_c + 1) * 80, pos_r * 80, (pos_c + 1) * 80 - c,
+                                           pos_r * 80 + c, (pos_c + 1) * 80, fill="#829769", outline="#829769")
+                self.canvas.create_polygon((pos_r + 1) * 80, (pos_c + 1) * 80, (pos_r + 1) * 80, (pos_c + 1) * 80 - c,
+                                           (pos_r + 1) * 80 - c, (pos_c + 1) * 80, fill="#829769", outline="#829769")
+                self.canvas.create_polygon((pos_r + 1) * 80, pos_c * 80, (pos_r + 1) * 80 - c, pos_c * 80,
+                                           (pos_r + 1) * 80, pos_c * 80 + c, fill="#829769", outline="#829769")
 
     def _on_click(self, event):
         col = event.x // 80
@@ -344,24 +360,41 @@ class Chess:
             return
 
         piece = self.board[row][col]
+        if self.selected_piece is not None and piece[2] != self.current_player and (row, col) in self._valid_moves()[self.selected_piece[0]][self.selected_piece[1]]:
+            self._make_move(row, col)
+        else:
+            if self.selected_piece is None:
+                if piece != "No_piece" and piece[2] == self.current_player:
+                    self.selected_piece = (row, col)
+                    self.canvas.delete("all")
+                    self._draw_board()
+                    self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
+                    self._draw_piece(row, col)
+                    self._draw_pos_moves(row, col)
 
-        if self.selected_piece is None:
-            if piece != "No_piece" and piece[2] == self.current_player:
-                self.selected_piece = (row, col)
+            elif self.selected_piece == (row, col):
+                self.canvas.delete("all")
+                self._draw_board()
+                self.selected_piece = None
+            elif piece[2] == self.current_player:
                 self.canvas.delete("all")
                 self._draw_board()
                 self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
                 self._draw_piece(row, col)
-        elif self.selected_piece == (row, col):
-            self.canvas.delete("all")
-            self._draw_board()
-            self.selected_piece = None
-        elif piece[2] == self.current_player:
-            self.canvas.delete("all")
-            self._draw_board()
-            self.canvas.create_rectangle(col * 80, row * 80, (col + 1) * 80, (row + 1) * 80, fill="#829769",outline="#829769")
-            self._draw_piece(row, col)
-            self.selected_piece = (row, col)
+                self.selected_piece = (row, col)
+                self._draw_pos_moves(row, col)
+
+    def _make_move(self, row, col):
+        self.board[row][col] = self.board[self.selected_piece[0]][self.selected_piece[1]]
+        self.board[self.selected_piece[0]][self.selected_piece[1]] = "No_piece"
+        self.canvas.delete("all")
+        self._draw_board()
+        if self.current_player == "w":
+            self.current_player = "b"
+            return
+        self.current_player = "w"
+
+    def _is_check(self):
 
 a = Chess()
 a._setting()
