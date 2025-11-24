@@ -1,5 +1,6 @@
 import tkinter as tk
 from copy import deepcopy
+from operator import index
 from tkinter import messagebox
 from PIL import ImageTk, Image
 
@@ -33,6 +34,9 @@ class Chess:
         board[0][2], board[0][5] = "b_black", "b_black"
         board[0][3] = "q_black"
         board[0][4] = "k_black"
+
+        self.b_king_pos = (0, 4)
+        self.w_king_pos = (7, 4)
 
         return board
 
@@ -122,6 +126,7 @@ class Chess:
         self.canvas = canvas
         canvas.pack()
         self.canvas.bind("<Button-1>", self._on_click)
+        self._valid_moves()
         self._draw_board()
 
     def _draw_board(self, cell_size=80):
@@ -282,12 +287,12 @@ class Chess:
 
     def _valid_moves(self):
         #self.board[3][3] = 'q_white'
-        valid_moves = deepcopy(self.board)
+        self.valid_moves = deepcopy(self.board)
         for row in range(8):
             for col in range(8):
-                piece = valid_moves[row][col]
+                piece = self.valid_moves[row][col]
                 if piece == 'No_piece':
-                    valid_moves[row][col] = []
+                    self.valid_moves[row][col] = []
                 elif piece == "p_white":
                     piece = []
                     if row-1 >= 0 and self.board[row-1][col] == "No_piece":
@@ -298,7 +303,7 @@ class Chess:
                         piece.append((row-1, col-1))
                     if row == 6 and self.board[row-1][col] == "No_piece" and self.board[row-2][col] == "No_piece":
                         piece.append((row-2, col))
-                    valid_moves[row][col] = piece
+                    self.valid_moves[row][col] = piece
                 elif piece == "p_black":
                     piece = []
                     if row+1 <= 7 and self.board[row+1][col] == "No_piece":
@@ -309,7 +314,7 @@ class Chess:
                         piece.append((row+1, col+1))
                     if row == 1 and self.board[row+1][col] == "No_piece" and self.board[row+2][col] == "No_piece":
                         piece.append((row+2, col))
-                    valid_moves[row][col] = piece
+                    self.valid_moves[row][col] = piece
                 elif piece[0] == "n":
                     color = piece[2]
                     piece = []
@@ -321,23 +326,28 @@ class Chess:
                         for ch_c in ch_col:
                             if 0 <= row+ch_r <= 7 and 0 <= col+ch_c <= 7 and self.board[row+ch_r][col+ch_c][2] != color:
                                 piece.append((row+ch_r, col+ch_c))
-                    valid_moves[row][col] = piece
+                    self.valid_moves[row][col] = piece
                 elif piece[0] == "r":
                     color = piece[2]
-                    valid_moves[row][col] = self._valid_rook_move(row, col, color)
+                    self.valid_moves[row][col] = self._valid_rook_move(row, col, color)
                 elif piece[0] == "b":
                     color = piece[2]
-                    valid_moves[row][col] = self._valid_bishop_move(row, col, color)
+                    self.valid_moves[row][col] = self._valid_bishop_move(row, col, color)
                 elif piece[0] == "q":
                     color = piece[2]
-                    valid_moves[row][col] = self._valid_rook_move(row, col, color) + self._valid_bishop_move(row, col, color)
+                    self.valid_moves[row][col] = self._valid_rook_move(row, col, color) + self._valid_bishop_move(row, col, color)
                 else:
-                    valid_moves[row][col] = []
-
-        return valid_moves
+                    color = piece[2]
+                    piece = []
+                    for ch_r in -1, 0, 1:
+                        for ch_c in -1, 0, 1:
+                            if 0 <= row+ch_r <= 7 and 0 <= col+ch_c <= 7 and self.board[row+ch_r][col+ch_c][2] != color:
+                                piece.append((row+ch_r, col+ch_c))
+                    self.valid_moves[row][col] = piece
+        return self.valid_moves
 
     def _draw_pos_moves(self, row, col):
-        for (pos_c, pos_r) in self._valid_moves()[row][col]:
+        for (pos_c, pos_r) in self.valid_moves[row][col]:
             if self.board[pos_c][pos_r] == "No_piece":
                 self.canvas.create_oval(pos_r * 80 + 30, pos_c * 80 + 30, pos_r * 80 + 50, pos_c * 80 + 50,
                                         fill="#829769", outline="#829769")
@@ -360,7 +370,7 @@ class Chess:
             return
 
         piece = self.board[row][col]
-        if self.selected_piece is not None and piece[2] != self.current_player and (row, col) in self._valid_moves()[self.selected_piece[0]][self.selected_piece[1]]:
+        if self.selected_piece is not None and piece[2] != self.current_player and (row, col) in self.valid_moves[self.selected_piece[0]][self.selected_piece[1]]:
             self._make_move(row, col)
         else:
             if self.selected_piece is None:
@@ -383,18 +393,73 @@ class Chess:
                 self._draw_piece(row, col)
                 self.selected_piece = (row, col)
                 self._draw_pos_moves(row, col)
+            self._checked_king()
 
     def _make_move(self, row, col):
+        if self.selected_piece == self.w_king_pos:
+            self.w_king_pos = (row, col)
+        elif self.selected_piece == self.b_king_pos:
+            self.b_king_pos = (row, col)
         self.board[row][col] = self.board[self.selected_piece[0]][self.selected_piece[1]]
         self.board[self.selected_piece[0]][self.selected_piece[1]] = "No_piece"
+        self._valid_moves()
         self.canvas.delete("all")
         self._draw_board()
+        self._checked_king()
         if self.current_player == "w":
             self.current_player = "b"
+            self._simulate("b")
             return
         self.current_player = "w"
+        self._simulate("w")
 
-    def _is_check(self):
+    def _checked_king(self):
+        if self._is_check('w'):
+            king_on_check = self.w_king_pos
+        elif self._is_check('b'):
+            king_on_check = self.b_king_pos
+        if self._is_check('w') or self._is_check('b'):
+            self.canvas.create_rectangle(king_on_check[1] * 80, king_on_check[0] * 80, (king_on_check[1] + 1) * 80,
+                                         (king_on_check[0] + 1) * 80, outline='red', width=4)
+
+    def _is_check(self, color):
+        if color == "w":
+            king = self._find_king("white")
+            opp_col = "b"
+        else:
+            king = self._find_king("black")
+            opp_col = "w"
+        for row in range(8):
+            for col in range(8):
+                if self.board[row][col][2] == opp_col and king in self.valid_moves[row][col]:
+                    return True
+        return False
+
+    def _find_king(self, color):
+        for row in range(8):
+            for col in range(8):
+                if self.board[row][col] == f'k_{color}':
+                    return (row, col)
+
+    def _simulate(self, player):
+        valid_after_simulate = [[[] for _ in range(8)] for _ in range(8)]
+        for row in range(8):
+            for col in range(8):
+                moves = self.valid_moves[row][col]
+                for move in range(len(moves)):
+                    row_move, col_move = moves[move]
+                    on_cell_piece = self.board[row_move][col_move]
+                    self.board[row][col], self.board[row_move][col_move] = "No_piece", self.board[row][col]
+                    self._valid_moves()
+                    if player == "w":
+                        if not self._is_check("w"):
+                            valid_after_simulate[row][col].append(moves[move])
+                    else:
+                        if not self._is_check("b"):
+                            valid_after_simulate[row][col].append(moves[move])
+                    self.board[row][col], self.board[row_move][col_move] = self.board[row_move][col_move], on_cell_piece
+                    self._valid_moves()
+        self.valid_moves = valid_after_simulate
 
 a = Chess()
 a._setting()
