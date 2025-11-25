@@ -1,6 +1,5 @@
 import tkinter as tk
 from copy import deepcopy
-from operator import index
 from tkinter import messagebox
 from PIL import ImageTk, Image
 
@@ -82,7 +81,7 @@ class Chess:
         self.root.mainloop()
 
     def _start_game(self):
-        time_input = self.time_entry.get().strip()
+        time_input = self.time_entry.get().strip().replace(',', '.')
 
         if not time_input:
             self.time_limit = 180
@@ -286,7 +285,6 @@ class Chess:
         return piece
 
     def _valid_moves(self):
-        #self.board[3][3] = 'q_white'
         self.valid_moves = deepcopy(self.board)
         for row in range(8):
             for col in range(8):
@@ -412,6 +410,8 @@ class Chess:
             return
         self.current_player = "w"
         self._simulate("w")
+        self._is_mate()
+        self._is_stalemate()
 
     def _checked_king(self):
         if self._is_check('w'):
@@ -461,5 +461,29 @@ class Chess:
                     self._valid_moves()
         self.valid_moves = valid_after_simulate
 
-a = Chess()
-a._setting()
+    def _no_moves(self):
+        for row in range(8):
+            for col in range(8):
+                if self.board[row][col][2] == self.current_player and self.valid_moves[row][col] != []:
+                    return False
+        print("Нет ходов")
+        return True
+
+    def _is_mate(self):
+        if self._is_check(self.current_player) and self._no_moves():
+            print("Мат")
+            return True
+        return False
+
+    def _is_stalemate(self):
+        if not self._is_check(self.current_player) and self._no_moves():
+            print("Пат")
+            return True
+        return False
+
+    def run(self):
+        self._setting()
+
+if __name__ == "__main__":
+    chess = Chess()
+    chess.run()
