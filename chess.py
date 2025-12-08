@@ -11,9 +11,12 @@ class Chess:
         self.time_entry = None
         self.piece_images = {}
         self.player_time = {"white": time_limit, "black": time_limit}
-        self.current_player = "w"
-        self.selected_piece = None
+        self.current_player = "white"
+        self.selected_piece_pos = None
         self.board = self._initialize_board()
+        self.king_moved = [False, False]
+        self.rook_moved = [[False, False], [False, False]]
+        self.en_passant_target = None
 
     def _initialize_board(self):
         board = [['No_piece' for _ in range(8)] for _ in range(8)]
@@ -186,7 +189,7 @@ class Chess:
 
     def _draw_piece(self, row, col, cell_size=80):
         piece = self.board[row][col]
-        if piece != 'No_piece':
+        if piece != 'No_piece' and piece[8:] != 'shadow':
             img_key = ""
             x = col * cell_size
             y = row * cell_size
@@ -368,95 +371,115 @@ class Chess:
             return
 
         piece = self.board[row][col]
-        if self.selected_piece is not None and piece[2] != self.current_player and (row, col) in self.valid_moves[self.selected_piece[0]][self.selected_piece[1]]:
+        if self.selected_piece_pos is not None and piece[2] != self.current_player[0] and (row, col) in self.valid_moves[self.selected_piece_pos[0]][self.selected_piece_pos[1]]:
             self._make_move(row, col)
         else:
-            if self.selected_piece is None:
-                if piece != "No_piece" and piece[2] == self.current_player:
-                    self.selected_piece = (row, col)
+            if self.selected_piece_pos is None:
+                if piece != "No_piece" and piece[2] == self.current_player[0]:
+                    self.selected_piece_pos = (row, col)
                     self.canvas.delete("all")
                     self._draw_board()
                     self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
                     self._draw_piece(row, col)
                     self._draw_pos_moves(row, col)
 
-            elif self.selected_piece == (row, col):
+            elif self.selected_piece_pos == (row, col):
                 self.canvas.delete("all")
                 self._draw_board()
-                self.selected_piece = None
-            elif piece[2] == self.current_player:
+                self.selected_piece_pos = None
+            elif piece[2] == self.current_player[0]:
                 self.canvas.delete("all")
                 self._draw_board()
                 self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
                 self._draw_piece(row, col)
-                self.selected_piece = (row, col)
+                self.selected_piece_pos = (row, col)
                 self._draw_pos_moves(row, col)
-            self._checked_king()
+            self.highlight_checked_king()
 
     def _make_move(self, row, col):
-        if self.selected_piece == self.w_king_pos:
+        piece = self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]]
+        if self.selected_piece_pos == self.w_king_pos:
+            if col - self.w_king_pos[1] == 2:
+                self.w_king_pos = (row, col)
+                self.board[row][col-1] = "r_white"
+                self.board[row][7] = "No_piece"
+            elif col - self.w_king_pos[1] == -2:
+                self.w_king_pos = (row, col)
+                self.board[row][col+1] = "r_white"
+                self.board[row][0] = "No_piece"
             self.w_king_pos = (row, col)
-        elif self.selected_piece == self.b_king_pos:
+            self.king_moved[1] = True
+        elif self.selected_piece_pos == self.b_king_pos:
+            if col - self.b_king_pos[1] == 2:
+                self.b_king_pos = (row, col)
+                self.board[row][col-1] = "r_black"
+                self.board[row][7] = "No_piece"
+            elif col - self.b_king_pos[1] == -2:
+                self.b_king_pos = (row, col)
+                self.board[row][col+1] = "r_black"
+                self.board[row][0] = "No_piece"
             self.b_king_pos = (row, col)
-        self.board[row][col] = self.board[self.selected_piece[0]][self.selected_piece[1]]
-        self.board[self.selected_piece[0]][self.selected_piece[1]] = "No_piece"
+            self.king_moved[0] = True
+        for x in 0, 1:
+            for y in 0, 1:
+                if self.selected_piece_pos == (x * 7, y * 7) and not self.rook_moved[x][y]:
+                    self.rook_moved[x][y] = True
+        self.board[row][col] = piece
+        self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]] = "No_piece"
         self._valid_moves()
         self.canvas.delete("all")
         self._draw_board()
-        self._checked_king()
-        if self.current_player == "w":
-            self.current_player = "b"
+        self.highlight_checked_king()
+        if self.current_player == "white":
+            self.current_player = "black"
             self._simulate("b")
-            return
-        self.current_player = "w"
-        self._simulate("w")
+        else:
+            self.current_player = "white"
+            self._simulate("w")
+        self.castle()
         self._is_mate()
         self._is_stalemate()
 
-    def _checked_king(self):
-        if self._is_check('w'):
+    def highlight_checked_king(self):
+        if self._is_square_under_attack(self.w_king_pos[0], self.w_king_pos[1], 'w'):
             king_on_check = self.w_king_pos
-        elif self._is_check('b'):
+        elif self._is_square_under_attack(self.b_king_pos[0], self.b_king_pos[1], 'b'):
             king_on_check = self.b_king_pos
-        if self._is_check('w') or self._is_check('b'):
+        if self._is_square_under_attack(self.w_king_pos[0], self.w_king_pos[1], 'w') or \
+                self._is_square_under_attack(self.b_king_pos[0], self.b_king_pos[1], 'b'):
             self.canvas.create_rectangle(king_on_check[1] * 80, king_on_check[0] * 80, (king_on_check[1] + 1) * 80,
                                          (king_on_check[0] + 1) * 80, outline='red', width=4)
 
-    def _is_check(self, color):
-        if color == "w":
-            king = self._find_king("white")
-            opp_col = "b"
-        else:
-            king = self._find_king("black")
-            opp_col = "w"
-        for row in range(8):
-            for col in range(8):
-                if self.board[row][col][2] == opp_col and king in self.valid_moves[row][col]:
+    def _is_square_under_attack(self, row, col, color):
+        opp_col = "b" if color == "w" else "w"
+        for brd_r in range(8):
+            for brd_c in range(8):
+                if self.board[brd_r][brd_c][2] == opp_col and (row, col) in self.valid_moves[brd_r][brd_c]:
                     return True
         return False
-
-    def _find_king(self, color):
-        for row in range(8):
-            for col in range(8):
-                if self.board[row][col] == f'k_{color}':
-                    return (row, col)
 
     def _simulate(self, player):
         valid_after_simulate = [[[] for _ in range(8)] for _ in range(8)]
         for row in range(8):
             for col in range(8):
                 moves = self.valid_moves[row][col]
-                for move in range(len(moves)):
-                    row_move, col_move = moves[move]
+                for move in moves:
+                    row_move, col_move = move
                     on_cell_piece = self.board[row_move][col_move]
                     self.board[row][col], self.board[row_move][col_move] = "No_piece", self.board[row][col]
                     self._valid_moves()
                     if player == "w":
-                        if not self._is_check("w"):
-                            valid_after_simulate[row][col].append(moves[move])
+                        if self.board[row_move][col_move] == "k_white":
+                            if not self._is_square_under_attack(row_move, col_move, "w"):
+                                valid_after_simulate[row][col].append(move)
+                        elif not self._is_square_under_attack(self.w_king_pos[0], self.w_king_pos[1], "w"):
+                            valid_after_simulate[row][col].append(move)
                     else:
-                        if not self._is_check("b"):
-                            valid_after_simulate[row][col].append(moves[move])
+                        if self.board[row_move][col_move] == "k_black":
+                            if not self._is_square_under_attack(row_move, col_move, "b"):
+                                valid_after_simulate[row][col].append(move)
+                        elif not self._is_square_under_attack(self.b_king_pos[0], self.b_king_pos[1], "b"):
+                            valid_after_simulate[row][col].append(move)
                     self.board[row][col], self.board[row_move][col_move] = self.board[row_move][col_move], on_cell_piece
                     self._valid_moves()
         self.valid_moves = valid_after_simulate
@@ -464,22 +487,36 @@ class Chess:
     def _no_moves(self):
         for row in range(8):
             for col in range(8):
-                if self.board[row][col][2] == self.current_player and self.valid_moves[row][col] != []:
+                if self.board[row][col][2] == self.current_player[0] and self.valid_moves[row][col] != []:
                     return False
-        print("Нет ходов")
+        print("No valid moves")
         return True
 
     def _is_mate(self):
-        if self._is_check(self.current_player) and self._no_moves():
+        king = self.w_king_pos if self.current_player == "white" else self.b_king_pos
+        if self._is_square_under_attack(king[0], king[1], self.current_player[0]) and self._no_moves():
             print("Мат")
             return True
         return False
 
     def _is_stalemate(self):
-        if not self._is_check(self.current_player) and self._no_moves():
+        king = self.w_king_pos if self.current_player == "white" else self.b_king_pos
+        if not self._is_square_under_attack(king[0], king[1], self.current_player[0]) and self._no_moves():
             print("Пат")
             return True
         return False
+
+    def castle(self):
+        for c in 0, 1:
+            color = "w" if c == 1 else "b"
+            if not(self.rook_moved[c][0] or self.king_moved[c]) and \
+                    all(x == "No_piece" for x in self.board[c*7][1:4]) and \
+                    all(not(self._is_square_under_attack(c*7, x, color)) for x in (2, 3, 4)):
+                self.valid_moves[c*7][4].append((c*7, 2))
+            if not(self.rook_moved[c][1] or self.king_moved[c]) and \
+                    all(x == "No_piece" for x in self.board[c*7][5:7]) and \
+                    all(not(self._is_square_under_attack(c*7, x, color)) for x in (4, 5 ,6)):
+                self.valid_moves[c * 7][4].append((c * 7, 6))
 
     def run(self):
         self._setting()
