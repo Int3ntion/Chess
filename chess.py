@@ -189,7 +189,7 @@ class Chess:
 
     def _draw_piece(self, row, col, cell_size=80):
         piece = self.board[row][col]
-        if piece != 'No_piece' and piece[8:] != 'shadow':
+        if piece != 'No_piece' and piece[0] != 's':
             img_key = ""
             x = col * cell_size
             y = row * cell_size
@@ -212,7 +212,7 @@ class Chess:
         piece = []
         if row != 0:
             for ch_r in range(1, row + 1):
-                if self.board[row - ch_r][col] == "No_piece":
+                if self.board[row - ch_r][col] == "No_piece" or self.board[row - ch_r][col][0] == "s":
                     piece.append((row - ch_r, col))
                 elif self.board[row - ch_r][col][2] != color:
                     piece.append((row - ch_r, col))
@@ -221,7 +221,7 @@ class Chess:
                     break
         if row != 7:
             for ch_r in range(1, 8 - row):
-                if self.board[row + ch_r][col] == "No_piece":
+                if self.board[row + ch_r][col] == "No_piece" or self.board[row + ch_r][col][0] == "s":
                     piece.append((row + ch_r, col))
                 elif self.board[row + ch_r][col][2] != color:
                     piece.append((row + ch_r, col))
@@ -230,7 +230,7 @@ class Chess:
                     break
         if col != 0:
             for ch_c in range(1, col + 1):
-                if self.board[row][col - ch_c] == "No_piece":
+                if self.board[row][col - ch_c] == "No_piece" or self.board[row][col - ch_c][0] == "s":
                     piece.append((row, col - ch_c))
                 elif self.board[row][col - ch_c][2] != color:
                     piece.append((row, col - ch_c))
@@ -239,7 +239,7 @@ class Chess:
                     break
         if col != 7:
             for ch_c in range(1, 8 - col):
-                if self.board[row][col + ch_c] == "No_piece":
+                if self.board[row][col + ch_c] == "No_piece" or self.board[row][col + ch_c][0] == "s":
                     piece.append((row, col + ch_c))
                 elif self.board[row][col + ch_c][2] != color:
                     piece.append((row, col + ch_c))
@@ -254,7 +254,7 @@ class Chess:
         nw, sw, se, ne = True, True, True, True
         for ch in range(1, 7):
             if nw:
-                if row - ch >= 0 and col - ch >= 0 and self.board[row - ch][col - ch] == "No_piece":
+                if row - ch >= 0 and col - ch >= 0 and (self.board[row - ch][col - ch] == "No_piece" or self.board[row - ch][col - ch][0] == "s"):
                     piece.append((row - ch, col - ch))
                 elif row - ch >= 0 and col - ch >= 0 and self.board[row - ch][col - ch][2] != color:
                     piece.append((row - ch, col - ch))
@@ -262,7 +262,7 @@ class Chess:
                 else:
                     nw = False
             if ne:
-                if row - ch >= 0 and col + ch <= 7 and self.board[row - ch][col + ch] == "No_piece":
+                if row - ch >= 0 and col + ch <= 7 and (self.board[row - ch][col + ch] == "No_piece" or self.board[row - ch][col + ch][0] == "s"):
                     piece.append((row - ch, col + ch))
                 elif row - ch >= 0 and col + ch <= 7 and self.board[row - ch][col + ch][2] != color:
                     piece.append((row - ch, col + ch))
@@ -270,7 +270,7 @@ class Chess:
                 else:
                     ne = False
             if se:
-                if row + ch <= 7 and col + ch <= 7 and self.board[row + ch][col + ch] == "No_piece":
+                if row + ch <= 7 and col + ch <= 7 and (self.board[row + ch][col + ch] == "No_piece" or self.board[row + ch][col + ch][0] == "s"):
                     piece.append((row + ch, col + ch))
                 elif row + ch <= 7 and col + ch <= 7 and self.board[row + ch][col + ch][2] != color:
                     piece.append((row + ch, col + ch))
@@ -278,7 +278,7 @@ class Chess:
                 else:
                     se = False
             if sw:
-                if row + ch <= 7 and col - ch >= 0 and self.board[row + ch][col - ch] == "No_piece":
+                if row + ch <= 7 and col - ch >= 0 and (self.board[row + ch][col - ch] == "No_piece" or self.board[row + ch][col - ch][0] == "s"):
                     piece.append((row + ch, col - ch))
                 elif row + ch <= 7 and col - ch >= 0 and self.board[row + ch][col - ch][2] != color:
                     piece.append((row + ch, col - ch))
@@ -292,13 +292,13 @@ class Chess:
         for row in range(8):
             for col in range(8):
                 piece = self.valid_moves[row][col]
-                if piece == 'No_piece':
+                if piece == 'No_piece' or piece[0] == "s":
                     self.valid_moves[row][col] = []
                 elif piece == "p_white":
                     piece = []
                     if row-1 >= 0 and self.board[row-1][col] == "No_piece":
                         piece.append((row-1, col))
-                    if col+1 <= 7 and row-1 >= 0 and self.board[row-1][col+1][2] == "b":
+                    if col+1 <= 7 and row-1 >= 0 and (self.board[row-1][col+1][2] == "b"):
                         piece.append((row-1, col+1))
                     if col-1 >= 0 and row-1 >= 0 and self.board[row-1][col-1][2] == "b":
                         piece.append((row-1, col-1))
@@ -320,10 +320,7 @@ class Chess:
                     color = piece[2]
                     piece = []
                     for ch_r in 1, -1, 2, -2:
-                        if abs(ch_r) == 2:
-                            ch_col = [1, -1]
-                        else:
-                            ch_col = [2, -2]
+                        ch_col = [1, -1] if abs(ch_r) == 2 else [2, -2]
                         for ch_c in ch_col:
                             if 0 <= row+ch_r <= 7 and 0 <= col+ch_c <= 7 and self.board[row+ch_r][col+ch_c][2] != color:
                                 piece.append((row+ch_r, col+ch_c))
@@ -349,7 +346,8 @@ class Chess:
 
     def _draw_pos_moves(self, row, col):
         for (pos_c, pos_r) in self.valid_moves[row][col]:
-            if self.board[pos_c][pos_r] == "No_piece":
+            if self.board[pos_c][pos_r] == "No_piece" or \
+                    (self.board[pos_c][pos_r][0] == "s" and self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]][0] != "p"):
                 self.canvas.create_oval(pos_r * 80 + 30, pos_c * 80 + 30, pos_r * 80 + 50, pos_c * 80 + 50,
                                         fill="#829769", outline="#829769")
             else:
@@ -398,6 +396,20 @@ class Chess:
 
     def _make_move(self, row, col):
         piece = self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]]
+        for r in range(8):
+            for c in range(8):
+                if self.board[r][c][0] == "s" and (r, c) != (row, col):
+                    self.board[r][c] = "No_piece"
+        if piece[0] == 'p' and abs(self.selected_piece_pos[0] - row) == 2:
+            piece_pos = self.selected_piece_pos
+            if self.board[piece_pos[0]][piece_pos[1]] == "p_white":
+                self.board[piece_pos[0] - 1][piece_pos[1]] = "s_white"
+            else:
+                self.board[piece_pos[0] + 1][piece_pos[1]] = "s_black"
+            self.en_passant_target = (piece_pos[0] + 2, piece_pos[1]) if self.board[piece_pos[0]][piece_pos[1]][2] == "b" \
+                else (piece_pos[0] - 2, piece_pos[1])
+        if self.board[row][col][0] == "s" and piece[0] == "p":
+            self.board[self.en_passant_target[0]][self.en_passant_target[1]] = "No_piece"
         if self.selected_piece_pos == self.w_king_pos:
             if col - self.w_king_pos[1] == 2:
                 self.w_king_pos = (row, col)
@@ -422,7 +434,7 @@ class Chess:
             self.king_moved[0] = True
         for x in 0, 1:
             for y in 0, 1:
-                if self.selected_piece_pos == (x * 7, y * 7) and not self.rook_moved[x][y]:
+                if self.selected_piece_pos == (x * 7, y * 7):
                     self.rook_moved[x][y] = True
         self.board[row][col] = piece
         self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]] = "No_piece"
