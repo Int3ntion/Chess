@@ -555,7 +555,7 @@ class Chess:
 
             def select_piece(piece_type):
                 # Формируем название новой фигуры
-                new_piece = f"{piece_type[0]}_{color}"
+                new_piece = f"{piece_type[0] if piece_type != "knight" else "n"}_{color}"
                 # Заменяем пешку на выбранную фигуру
                 self.board[row][col] = new_piece
 
