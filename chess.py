@@ -56,7 +56,7 @@ class Chess:
 
         instruction_label = tk.Label(
             self.root,
-            text = "Введите время на игрока (в секундах)",
+            text = "Введите время на игрока (в минутах)",
             font = ("Arial", 12, "italic")
         )
         instruction_label.pack()
@@ -438,19 +438,24 @@ class Chess:
                     self.rook_moved[x][y] = True
         self.board[row][col] = piece
         self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]] = "No_piece"
-        self._valid_moves()
-        self.canvas.delete("all")
-        self._draw_board()
-        self.highlight_checked_king()
-        if self.current_player == "white":
-            self.current_player = "black"
-            self._simulate("b")
+        if piece == "p_white" and row == 0:
+            self._promote(row, col)
+        elif piece == "p_black" and row == 7:
+            self._promote(row, col)
         else:
-            self.current_player = "white"
-            self._simulate("w")
-        self.castle()
-        self._is_mate()
-        self._is_stalemate()
+            self._valid_moves()
+            self.canvas.delete("all")
+            self._draw_board()
+            self.highlight_checked_king()
+            if self.current_player == "white":
+                self.current_player = "black"
+                self._simulate("b")
+            else:
+                self.current_player = "white"
+                self._simulate("w")
+            self.castle()
+            self._is_mate()
+            self._is_stalemate()
 
     def highlight_checked_king(self):
         if self._is_square_under_attack(self.w_king_pos[0], self.w_king_pos[1], 'w'):
@@ -529,6 +534,71 @@ class Chess:
                     all(x == "No_piece" for x in self.board[c*7][5:7]) and \
                     all(not(self._is_square_under_attack(c*7, x, color)) for x in (4, 5 ,6)):
                 self.valid_moves[c * 7][4].append((c * 7, 6))
+
+    def _promote(self, row, col):
+        # Проверяем, что пешка достигла последней горизонтали
+        if (self.current_player == "white" and row == 0) or (self.current_player == "black" and row == 7):
+            # Создаем новое окно для выбора фигуры
+            promote_window = tk.Toplevel(self.board_window)
+            promote_window.title("Превращение пешки")
+            promote_window.geometry("370x90")
+            promote_window.resizable(False, False)
+
+            # Запрещаем закрытие окна через крестик
+            promote_window.protocol("WM_DELETE_WINDOW", lambda: None)
+
+            # Определяем цвет пешки
+            color = self.current_player
+
+            # Список фигур для превращения (без пешки и короля)
+            pieces = ['queen', 'rook', 'bishop', 'knight']
+
+            def select_piece(piece_type):
+                # Формируем название новой фигуры
+                new_piece = f"{piece_type[0]}_{color}"
+                # Заменяем пешку на выбранную фигуру
+                self.board[row][col] = new_piece
+
+                # Обновляем валидные ходы после превращения
+                self._valid_moves()
+
+                # Проверяем, не поставили ли мы шах королю противника
+                opponent_king = self.b_king_pos if color == "white" else self.w_king_pos
+                is_check = self._is_square_under_attack(opponent_king[0], opponent_king[1],
+                                                        "b" if color == "white" else "w")
+
+                # Обновляем отображение
+                self.canvas.delete("all")
+                self._draw_board()
+
+                if is_check:
+                    # Выделяем короля под шахом
+                    self.highlight_checked_king()
+
+                # Передаем ход противнику
+                self.current_player = "black" if self.current_player == "white" else "white"
+                self._simulate("b" if self.current_player == "black" else "w")
+                self.castle()
+                self._is_mate()
+                self._is_stalemate()
+
+                # Закрываем окно выбора
+                promote_window.destroy()
+
+            # Размещаем кнопки с изображениями фигур
+            for i, piece in enumerate(pieces):
+                img_key = f"{color}_{piece}"
+                btn = tk.Button(
+                    promote_window,
+                    image=self.piece_images[img_key],
+                    command=lambda pt=piece: select_piece(pt),
+                    bd=0
+                )
+                btn.grid(row=0, column=i, padx=5, pady=5)
+
+            # Делаем окно модальным
+            promote_window.grab_set()
+            promote_window.focus_set()
 
     def run(self):
         self._setting()
