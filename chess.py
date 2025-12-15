@@ -4,7 +4,7 @@ from tkinter import messagebox
 from PIL import ImageTk, Image
 
 class Chess:
-    def __init__(self, time_limit=180):
+    def __init__(self, time_limit=600):
         self.root = tk.Tk()
         self.root.title("Шахматы")
         self.time_limit = None
@@ -17,6 +17,10 @@ class Chess:
         self.king_moved = [False, False]
         self.rook_moved = [[False, False], [False, False]]
         self.en_passant_target = None
+
+        self.timer_labels = {}
+        self.timer_running = False
+        self.after_id = None
 
     def _initialize_board(self):
         board = [['No_piece' for _ in range(8)] for _ in range(8)]
@@ -87,26 +91,26 @@ class Chess:
         time_input = self.time_entry.get().strip().replace(',', '.')
 
         if not time_input:
-            self.time_limit = 180
-            self.root.destroy()
-            self._setup_board()
-            return
+            self.time_limit = 600
+        else:
+            try:
+                time_in_minutes = float(time_input)
+                if time_in_minutes <= 0:
+                    messagebox.showerror("Ошибка", "Время должно быть положительным числом!")
+                    return
 
-        try:
-            time_per_player = float(time_input)
-            if time_per_player <= 0:
-                messagebox.showerror("Ошибка", "Время должно быть положительным числом!")
+                self.time_limit = int(time_in_minutes * 60)
+                self.player_time = {"white": self.time_limit, "black": self.time_limit}
+
+            except ValueError:
+                messagebox.showerror(
+                    "Ошибка",
+                    "Пожалуйста, введите корректное число (например, 10, 5.5, 15)!"
+                )
                 return
 
-            self.time_limit = time_per_player
-            self.root.destroy()
-            self._setup_board()
-
-        except ValueError:
-            messagebox.showerror(
-                "Ошибка",
-                "Пожалуйста, введите корректное число (например, 30)!"
-            )
+        self.root.destroy()
+        self._setup_board()
 
     def _setup_board(self):
         self.board_window = tk.Tk()
@@ -119,6 +123,21 @@ class Chess:
         canvas_width = 8 * cell_size
         canvas_height = 8 * cell_size
 
+        timer_frame = tk.Frame(self.board_window)
+        timer_frame.pack(pady=5)
+
+        tk.Label(timer_frame, text="Белые", font=("Arial", 12)).pack(side=tk.LEFT, padx=10)
+        self.timer_labels["white"] = tk.Label(
+            timer_frame, text=self._format_time(self.player_time["white"]), font=("Arial", 12, "bold"), fg="black"
+        )
+        self.timer_labels["white"].pack(side=tk.LEFT, padx=5)
+
+        tk.Label(timer_frame, text="Чёрные", font=("Arial", 12)).pack(side=tk.RIGHT, padx=10)
+        self.timer_labels["black"] = tk.Label(
+            timer_frame, text=self._format_time(self.player_time["black"]), font=("Arial", 12, "bold"), fg="black"
+        )
+        self.timer_labels["black"].pack(side=tk.RIGHT, padx=5)
+
         canvas = tk.Canvas(
             self.board_window,
             width=canvas_width,
@@ -127,9 +146,22 @@ class Chess:
         )
         self.canvas = canvas
         canvas.pack()
+
         self.canvas.bind("<Button-1>", self._on_click)
         self._valid_moves()
         self._draw_board()
+        self._start_timer()
+
+        tk.Button(
+            self.board_window,
+            text="Начать заново",
+            font=("Arial", 10),
+            bg="#4CAF50",
+            fg="white",
+            padx=10,
+            pady=5,
+            command=lambda: self._restart_game(self.board_window)
+        ).pack(pady=10)
 
     def _draw_board(self, cell_size=80):
         for row in range(8):
@@ -369,7 +401,8 @@ class Chess:
             return
 
         piece = self.board[row][col]
-        if self.selected_piece_pos is not None and piece[2] != self.current_player[0] and (row, col) in self.valid_moves[self.selected_piece_pos[0]][self.selected_piece_pos[1]]:
+        if self.selected_piece_pos is not None and piece[2] != self.current_player[0] and \
+                (row, col) in self.valid_moves[self.selected_piece_pos[0]][self.selected_piece_pos[1]]:
             self._make_move(row, col)
         else:
             if self.selected_piece_pos is None:
@@ -392,7 +425,7 @@ class Chess:
                 self._draw_piece(row, col)
                 self.selected_piece_pos = (row, col)
                 self._draw_pos_moves(row, col)
-            self.highlight_checked_king()
+            self._highlight_checked_king()
 
     def _make_move(self, row, col):
         piece = self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]]
@@ -446,18 +479,19 @@ class Chess:
             self._valid_moves()
             self.canvas.delete("all")
             self._draw_board()
-            self.highlight_checked_king()
+            self._highlight_checked_king()
             if self.current_player == "white":
                 self.current_player = "black"
-                self._simulate("b")
             else:
                 self.current_player = "white"
-                self._simulate("w")
-            self.castle()
+            self._stop_timer()
+            self._start_timer()
+            self._simulate("b" if self.current_player == "black" else "w")
+            self._castle()
             self._is_mate()
             self._is_stalemate()
 
-    def highlight_checked_king(self):
+    def _highlight_checked_king(self):
         if self._is_square_under_attack(self.w_king_pos[0], self.w_king_pos[1], 'w'):
             king_on_check = self.w_king_pos
         elif self._is_square_under_attack(self.b_king_pos[0], self.b_king_pos[1], 'b'):
@@ -506,24 +540,117 @@ class Chess:
             for col in range(8):
                 if self.board[row][col][2] == self.current_player[0] and self.valid_moves[row][col] != []:
                     return False
-        print("No valid moves")
         return True
 
     def _is_mate(self):
         king = self.w_king_pos if self.current_player == "white" else self.b_king_pos
         if self._is_square_under_attack(king[0], king[1], self.current_player[0]) and self._no_moves():
-            print("Мат")
+            self._stop_timer()
+            self._show_end_game_dialog("Мат! Победили " +
+                                       ("Чёрные" if self.current_player == "white" else "Белые") + ".")
             return True
         return False
 
     def _is_stalemate(self):
         king = self.w_king_pos if self.current_player == "white" else self.b_king_pos
         if not self._is_square_under_attack(king[0], king[1], self.current_player[0]) and self._no_moves():
-            print("Пат")
+            self._stop_timer()
+            self._show_end_game_dialog("Пат! Ничья.")
             return True
         return False
 
-    def castle(self):
+    def _show_end_game_dialog(self, message):
+        self._stop_timer()
+        end_window = tk.Toplevel(self.board_window)
+        end_window.title("Игра окончена")
+        end_window.geometry("300x150")
+        end_window.resizable(False, False)
+
+        self._center_window(end_window)
+        end_window.grab_set() #Не даёт взаимодействовать с доской
+
+        tk.Label(
+            end_window,
+            text=message,
+            font=("Arial", 12),
+            pady=20
+        ).pack()
+
+        tk.Button(
+            end_window,
+            text="Начать заново",
+            font=("Arial", 10),
+            bg="#4CAF50",
+            fg="white",
+            padx=10,
+            pady=5,
+            command=lambda: self._restart_game(end_window)
+        ).pack(pady=10)
+
+        end_window.focus_set()
+
+    def _center_window(self, window):
+        window.update_idletasks()
+        board_window = self.board_window
+
+        win_width = window.winfo_width()
+        win_height = window.winfo_height()
+
+        board_x = board_window.winfo_x()
+        board_y = board_window.winfo_y()
+        board_width = board_window.winfo_width()
+        board_height = board_window.winfo_height()
+
+        x = board_x + (board_width - win_width) // 2
+        y = board_y + (board_height - win_height) // 2
+
+        window.geometry(f"{win_width}x{win_height}+{x}+{y}")
+
+    def _restart_game(self, end_window):
+        self._stop_timer()
+        end_window.destroy()
+        self.board_window.destroy() if end_window != self.board_window else None
+
+        self.__init__(self.time_limit)
+        self._setting()
+
+    def _format_time(self, seconds):
+        mins = seconds // 60
+        secs = seconds % 60
+        return f"{mins:02d}:{secs:02d}"
+
+    def _update_timer(self):
+        if self.player_time[self.current_player] > 0:
+            self.player_time[self.current_player] -= 1
+            self.timer_labels[self.current_player].config(text=self._format_time(self.player_time[self.current_player]))
+            if self.player_time[self.current_player] == 0:
+                self._show_time_out()
+                return
+
+        self.after_id = self.board_window.after(1000, self._update_timer)
+
+    def _start_timer(self):
+        """Запускает таймер для текущего игрока."""
+        if not self.timer_running:
+            self.timer_running = True
+            self._update_timer()
+
+    def _stop_timer(self):
+        """Останавливает таймер (при переходе хода или окончании игры)."""
+        if self.timer_running and self.after_id is not None:
+            self.board_window.after_cancel(self.after_id)
+            self.after_id = None
+            self.timer_running = False
+
+    def _show_time_out(self):
+        """Вызывает диалог при истечении времени у текущего игрока."""
+        loser = "Белые" if self.current_player == "white" else "Чёрные"
+        winner = "Чёрные" if self.current_player == "white" else "Белые"
+        self._stop_timer()
+        messagebox.showinfo("Игра окончена", f"Время вышло! {loser} проиграли. Победили {winner}.")
+        self.board_window.destroy()
+
+    def _castle(self):
         for c in 0, 1:
             color = "w" if c == 1 else "b"
             if not(self.rook_moved[c][0] or self.king_moved[c]) and \
@@ -536,56 +663,35 @@ class Chess:
                 self.valid_moves[c * 7][4].append((c * 7, 6))
 
     def _promote(self, row, col):
-        # Проверяем, что пешка достигла последней горизонтали
         if (self.current_player == "white" and row == 0) or (self.current_player == "black" and row == 7):
-            # Создаем новое окно для выбора фигуры
             promote_window = tk.Toplevel(self.board_window)
             promote_window.title("Превращение пешки")
             promote_window.geometry("370x90")
             promote_window.resizable(False, False)
-
-            # Запрещаем закрытие окна через крестик
             promote_window.protocol("WM_DELETE_WINDOW", lambda: None)
 
-            # Определяем цвет пешки
             color = self.current_player
-
-            # Список фигур для превращения (без пешки и короля)
             pieces = ['queen', 'rook', 'bishop', 'knight']
 
             def select_piece(piece_type):
-                # Формируем название новой фигуры
                 new_piece = f"{piece_type[0] if piece_type != "knight" else "n"}_{color}"
-                # Заменяем пешку на выбранную фигуру
                 self.board[row][col] = new_piece
-
-                # Обновляем валидные ходы после превращения
                 self._valid_moves()
-
-                # Проверяем, не поставили ли мы шах королю противника
                 opponent_king = self.b_king_pos if color == "white" else self.w_king_pos
                 is_check = self._is_square_under_attack(opponent_king[0], opponent_king[1],
                                                         "b" if color == "white" else "w")
-
-                # Обновляем отображение
                 self.canvas.delete("all")
                 self._draw_board()
 
                 if is_check:
-                    # Выделяем короля под шахом
-                    self.highlight_checked_king()
-
-                # Передаем ход противнику
+                    self._highlight_checked_king()
                 self.current_player = "black" if self.current_player == "white" else "white"
                 self._simulate("b" if self.current_player == "black" else "w")
-                self.castle()
+                self._castle()
                 self._is_mate()
                 self._is_stalemate()
-
-                # Закрываем окно выбора
                 promote_window.destroy()
 
-            # Размещаем кнопки с изображениями фигур
             for i, piece in enumerate(pieces):
                 img_key = f"{color}_{piece}"
                 btn = tk.Button(
@@ -595,8 +701,6 @@ class Chess:
                     bd=0
                 )
                 btn.grid(row=0, column=i, padx=5, pady=5)
-
-            # Делаем окно модальным
             promote_window.grab_set()
             promote_window.focus_set()
 
