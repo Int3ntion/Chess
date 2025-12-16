@@ -3,22 +3,40 @@ from copy import deepcopy
 from tkinter import messagebox
 from PIL import ImageTk, Image
 
+
 class UnknownPiece(Exception):
+    '''
+    Вызывается, если на доске возникает неизвестная фигура (не входящая в стандартный набор фигур в шахматах)
+    '''
     pass
+
 
 class PieceNotOnBoard(Exception):
+    '''
+    Вызывается, если фигура, с которой пытаются работать, находится на доске, или выполняемый ход приводит к выходу за пределы доски
+    '''
     pass
+
 
 class CantFindImages(Exception):
+    '''
+    Вызывается, если не получилось найти изображение фигуры во введённой директории
+    '''
     pass
 
+
 class Chess:
-    def __init__(self, pth='pieces', time_limit=600):
+    '''
+    Класс, реализующий логику и визуализацию игры "Шахматы"
+    '''
+
+    def __init__(self, pth='pieces'):
+        '''
+        :param pth: Название директории, в которой находятся изображения фигур
+        '''
         self.path = pth
-        self.time_limit = time_limit
         self.time_entry = None
         self.piece_images = {}
-        self.player_time = {"white": time_limit, "black": time_limit}
         self.current_player = "white"
         self.selected_piece_pos = None
         self.board = self._initialize_board()
@@ -29,7 +47,12 @@ class Chess:
         self.timer_running = False
         self.after_id = None
 
-    def _initialize_board(self):
+    def _initialize_board(self) -> list[list[str]]:
+        '''
+        Инициализация расстановки фигур в начале партии
+
+        :return: None
+        '''
         board = [['No_piece' for _ in range(8)] for _ in range(8)]
 
         for col in range(8):
@@ -54,6 +77,11 @@ class Chess:
         return board
 
     def _setting(self):
+        '''
+        Вывод окна приветствия и настройки времени на игрока
+
+        :return: None
+        '''
         self.root = tk.Tk()
         self.root.title("Шахматы")
         self.root.geometry("400x200")
@@ -61,42 +89,47 @@ class Chess:
 
         title_label = tk.Label(
             self.root,
-            text = "Добро пожаловать в шахматы!",
-            font = ("Arial", 16, "bold"),
-            pady = 10
+            text="Добро пожаловать в шахматы!",
+            font=("Arial", 16, "bold"),
+            pady=10
         )
         title_label.pack()
 
         instruction_label = tk.Label(
             self.root,
-            text = "Введите время на игрока (в минутах)",
-            font = ("Arial", 12, "italic")
+            text="Введите время на игрока (в минутах)",
+            font=("Arial", 12, "italic")
         )
         instruction_label.pack()
 
         self.time_entry = tk.Entry(
             self.root,
-            width = 20,
-            font = ("Arial", 12),
-            justify = "center"
+            width=20,
+            font=("Arial", 12),
+            justify="center"
         )
         self.time_entry.pack(pady=10)
 
         start_button = tk.Button(
             self.root,
-            text = "Начать игру",
-            font = ("Arial", 12),
-            bg = "#4CAF50",
-            fg = "white",
-            padx = 20,
-            pady = 5,
-            command = self._start_game
+            text="Начать игру",
+            font=("Arial", 12),
+            bg="#4CAF50",
+            fg="white",
+            padx=20,
+            pady=5,
+            command=self._start_game
         )
         start_button.pack(pady=10)
 
         self.root.mainloop()
 
     def _start_game(self):
+        '''
+        Закрывает окно настройки при успешном вводе времени и запускает окно с доской
+
+        :return: None
+        '''
         time_input = self.time_entry.get().strip().replace(',', '.')
 
         if not time_input:
@@ -107,16 +140,15 @@ class Chess:
                 if time_in_minutes <= 0:
                     messagebox.showerror("Ошибка", "Время должно быть положительным числом!")
                     return
-
                 self.time_limit = int(time_in_minutes * 60)
-                self.player_time = {"white": self.time_limit, "black": self.time_limit}
 
             except ValueError:
                 messagebox.showerror(
                     "Ошибка",
-                    "Пожалуйста, введите корректное число (например, 10, 5.5, 15)!"
+                    "Пожалуйста, введите корректное число (например, 10, 5,5, 15)!"
                 )
                 return
+        self.player_time = {"white": self.time_limit, "black": self.time_limit}
         try:
             self.root.destroy()
             self._setup_board()
@@ -125,8 +157,12 @@ class Chess:
         except CantFindImages:
             print("Не удалось загрузить изображения фигур")
 
-
     def _setup_board(self):
+        '''
+        Открывает окно доски, в котором выводит время на игрока, пустой холст для отрисовки доски и кнопку перезапуска игры
+
+        :return: None
+        '''
         try:
             self.board_window = tk.Tk()
             self.board_window.title("Шахматы")
@@ -137,7 +173,8 @@ class Chess:
                     break
                 except CantFindImages:
                     self.path = input("Не получилось загрузить изображения\n"
-                    "Пожалуйста, введите правильный путь к папке с изображениями фигур\n-> ").strip('/')
+                                      "Пожалуйста, введите правильный путь к папке с изображениями фигур\n-> ").strip(
+                        '/')
                     self.path = 'pieces' if self.path == '' else self.path
 
             cell_size = 80
@@ -188,6 +225,12 @@ class Chess:
             print("Failed to load board window")
 
     def _draw_board(self, cell_size=80):
+        '''
+        Рисует на созданном холсте клетки, координаты, вызывает рисование фигур
+
+        :param cell_size: размер клетки шахматной доски
+        :return: None
+        '''
         for row in range(8):
             for col in range(8):
                 if (row + col) % 2 == 0:
@@ -203,7 +246,7 @@ class Chess:
                 y2 = y1 + cell_size
 
                 try:
-                    self.canvas.create_rectangle(x1, y1, x2, y2, fill = cell_color, outline = cell_color)
+                    self.canvas.create_rectangle(x1, y1, x2, y2, fill=cell_color, outline=cell_color)
                 except tk.TclError:
                     print("No canvas to draw a board")
 
@@ -214,10 +257,10 @@ class Chess:
                     self.canvas.create_text(
                         text_x,
                         text_y,
-                        text = letter,
-                        font = ("Arial", 9),
-                        fill = text_color,
-                        anchor = 'sw'
+                        text=letter,
+                        font=("Arial", 9),
+                        fill=text_color,
+                        anchor='sw'
                     )
                 if col == 7:
                     digit = 8 - row
@@ -226,10 +269,10 @@ class Chess:
                     self.canvas.create_text(
                         text_x,
                         text_y,
-                        text = str(digit),
-                        font = ("Arial", 9),
-                        fill = text_color,
-                        anchor = 'ne'
+                        text=str(digit),
+                        font=("Arial", 9),
+                        fill=text_color,
+                        anchor='ne'
                     )
                 try:
                     self._draw_piece(row, col)
@@ -237,6 +280,12 @@ class Chess:
                     self.board[row][col] = "No_piece"
 
     def _load_piece_images(self):
+        '''
+        Загружает изображения фигур из директории, введённой пользователем
+
+        :return: None
+        :raises CantFindImages: Если не удалось загрузить изображения фигур
+        '''
         piece_names = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king']
         colors = ['white', 'black']
 
@@ -253,6 +302,15 @@ class Chess:
         self.piece_images = images
 
     def _draw_piece(self, row, col, cell_size=80):
+        '''
+        Рисует фигуру в заданной клетке
+
+        :param row: Ряд, в котором необходимо нарисовать фигуру
+        :param col: Столбец, в котором необходимо нарисовать фигуру
+        :param cell_size: Размер клетки доски
+        :return: None
+        :raises UnknownPiece: Если для рисования на доске находится неизвестная фигура
+        '''
         piece = self.board[row][col]
         if piece != 'No_piece' and piece[0] != 's':
             img_key = ""
@@ -275,7 +333,16 @@ class Chess:
             except KeyError:
                 raise UnknownPiece
 
-    def _valid_rook_move(self, row, col, color):
+    def _valid_rook_move(self, row, col, color) -> list:
+        '''
+        Перебор всех возможных ходов ладьёй
+
+        :param row: Ряд, в котором находится фигура
+        :param col: Столбец, в который находится фигура
+        :param color: Цвет фигуры
+        :return: Возможные ходы ладьёй
+        :raises PieceNotOnBoard: Если фигура, для которой выполняется подбор, находится не в пределах доски
+        '''
         if 0 <= row < 8 and 0 <= col < 8:
             piece = []
             if row != 0:
@@ -319,13 +386,23 @@ class Chess:
 
         return piece
 
-    def _valid_bishop_move(self, row, col, color):
+    def _valid_bishop_move(self, row, col, color) -> list:
+        '''
+        Перебор всех возможных ходов слоном
+
+        :param row: Ряд, в котором находится фигура
+        :param col: Столбец, в который находится фигура
+        :param color: Цвет фигуры
+        :return: Возможные ходы слоном
+        :raises PieceNotOnBoard: Если фигура, для которой выполняется подбор, находится не в пределах доски
+        '''
         if 0 <= row < 8 and 0 <= col < 8:
             piece = []
             nw, sw, se, ne = True, True, True, True
             for ch in range(1, 7):
                 if nw:
-                    if row - ch >= 0 and col - ch >= 0 and (self.board[row - ch][col - ch] == "No_piece" or self.board[row - ch][col - ch][0] == "s"):
+                    if row - ch >= 0 and col - ch >= 0 and (
+                            self.board[row - ch][col - ch] == "No_piece" or self.board[row - ch][col - ch][0] == "s"):
                         piece.append((row - ch, col - ch))
                     elif row - ch >= 0 and col - ch >= 0 and self.board[row - ch][col - ch][2] != color:
                         piece.append((row - ch, col - ch))
@@ -333,7 +410,8 @@ class Chess:
                     else:
                         nw = False
                 if ne:
-                    if row - ch >= 0 and col + ch <= 7 and (self.board[row - ch][col + ch] == "No_piece" or self.board[row - ch][col + ch][0] == "s"):
+                    if row - ch >= 0 and col + ch <= 7 and (
+                            self.board[row - ch][col + ch] == "No_piece" or self.board[row - ch][col + ch][0] == "s"):
                         piece.append((row - ch, col + ch))
                     elif row - ch >= 0 and col + ch <= 7 and self.board[row - ch][col + ch][2] != color:
                         piece.append((row - ch, col + ch))
@@ -341,7 +419,8 @@ class Chess:
                     else:
                         ne = False
                 if se:
-                    if row + ch <= 7 and col + ch <= 7 and (self.board[row + ch][col + ch] == "No_piece" or self.board[row + ch][col + ch][0] == "s"):
+                    if row + ch <= 7 and col + ch <= 7 and (
+                            self.board[row + ch][col + ch] == "No_piece" or self.board[row + ch][col + ch][0] == "s"):
                         piece.append((row + ch, col + ch))
                     elif row + ch <= 7 and col + ch <= 7 and self.board[row + ch][col + ch][2] != color:
                         piece.append((row + ch, col + ch))
@@ -349,7 +428,8 @@ class Chess:
                     else:
                         se = False
                 if sw:
-                    if row + ch <= 7 and col - ch >= 0 and (self.board[row + ch][col - ch] == "No_piece" or self.board[row + ch][col - ch][0] == "s"):
+                    if row + ch <= 7 and col - ch >= 0 and (
+                            self.board[row + ch][col - ch] == "No_piece" or self.board[row + ch][col - ch][0] == "s"):
                         piece.append((row + ch, col - ch))
                     elif row + ch <= 7 and col - ch >= 0 and self.board[row + ch][col - ch][2] != color:
                         piece.append((row + ch, col - ch))
@@ -360,7 +440,12 @@ class Chess:
             raise PieceNotOnBoard
         return piece
 
-    def _valid_moves(self):
+    def _valid_moves(self) -> list[list]:
+        '''
+        Перебирает возможные ходы всех фигур на доске
+
+        :return: Матрица из возможных ходов
+        '''
         self.valid_moves = deepcopy(self.board)
         for row in range(8):
             for col in range(8):
@@ -369,25 +454,25 @@ class Chess:
                     self.valid_moves[row][col] = []
                 elif piece == "p_white":
                     piece = []
-                    if row-1 >= 0 and self.board[row-1][col] == "No_piece":
-                        piece.append((row-1, col))
-                    if col+1 <= 7 and row-1 >= 0 and (self.board[row-1][col+1][2] == "b"):
-                        piece.append((row-1, col+1))
-                    if col-1 >= 0 and row-1 >= 0 and self.board[row-1][col-1][2] == "b":
-                        piece.append((row-1, col-1))
-                    if row == 6 and self.board[row-1][col] == "No_piece" and self.board[row-2][col] == "No_piece":
-                        piece.append((row-2, col))
+                    if row - 1 >= 0 and self.board[row - 1][col] == "No_piece":
+                        piece.append((row - 1, col))
+                    if col + 1 <= 7 and row - 1 >= 0 and (self.board[row - 1][col + 1][2] == "b"):
+                        piece.append((row - 1, col + 1))
+                    if col - 1 >= 0 and row - 1 >= 0 and self.board[row - 1][col - 1][2] == "b":
+                        piece.append((row - 1, col - 1))
+                    if row == 6 and self.board[row - 1][col] == "No_piece" and self.board[row - 2][col] == "No_piece":
+                        piece.append((row - 2, col))
                     self.valid_moves[row][col] = piece
                 elif piece == "p_black":
                     piece = []
-                    if row+1 <= 7 and self.board[row+1][col] == "No_piece":
-                        piece.append((row+1, col))
-                    if col-1 >= 0 and row+1 <= 7 and self.board[row+1][col-1][2] == "w":
-                        piece.append((row+1, col-1))
-                    if col+1 <= 7 and row+1 <= 7 and self.board[row+1][col+1][2] == "w":
-                        piece.append((row+1, col+1))
-                    if row == 1 and self.board[row+1][col] == "No_piece" and self.board[row+2][col] == "No_piece":
-                        piece.append((row+2, col))
+                    if row + 1 <= 7 and self.board[row + 1][col] == "No_piece":
+                        piece.append((row + 1, col))
+                    if col - 1 >= 0 and row + 1 <= 7 and self.board[row + 1][col - 1][2] == "w":
+                        piece.append((row + 1, col - 1))
+                    if col + 1 <= 7 and row + 1 <= 7 and self.board[row + 1][col + 1][2] == "w":
+                        piece.append((row + 1, col + 1))
+                    if row == 1 and self.board[row + 1][col] == "No_piece" and self.board[row + 2][col] == "No_piece":
+                        piece.append((row + 2, col))
                     self.valid_moves[row][col] = piece
                 elif piece[0] == "n":
                     color = piece[2]
@@ -395,8 +480,9 @@ class Chess:
                     for ch_r in 1, -1, 2, -2:
                         ch_col = [1, -1] if abs(ch_r) == 2 else [2, -2]
                         for ch_c in ch_col:
-                            if 0 <= row+ch_r <= 7 and 0 <= col+ch_c <= 7 and self.board[row+ch_r][col+ch_c][2] != color:
-                                piece.append((row+ch_r, col+ch_c))
+                            if 0 <= row + ch_r <= 7 and 0 <= col + ch_c <= 7 and self.board[row + ch_r][col + ch_c][
+                                2] != color:
+                                piece.append((row + ch_r, col + ch_c))
                     self.valid_moves[row][col] = piece
                 elif piece[0] == "r":
                     color = piece[2]
@@ -413,7 +499,8 @@ class Chess:
                 elif piece[0] == "q":
                     color = piece[2]
                     try:
-                        self.valid_moves[row][col] = self._valid_rook_move(row, col, color) + self._valid_bishop_move(row, col, color)
+                        self.valid_moves[row][col] = self._valid_rook_move(row, col, color) + self._valid_bishop_move(
+                            row, col, color)
                     except PieceNotOnBoard:
                         self.board[row][col] = 'No_piece'
                 else:
@@ -421,16 +508,25 @@ class Chess:
                     piece = []
                     for ch_r in -1, 0, 1:
                         for ch_c in -1, 0, 1:
-                            if 0 <= row+ch_r <= 7 and 0 <= col+ch_c <= 7 and self.board[row+ch_r][col+ch_c][2] != color:
-                                piece.append((row+ch_r, col+ch_c))
+                            if 0 <= row + ch_r <= 7 and 0 <= col + ch_c <= 7 and self.board[row + ch_r][col + ch_c][
+                                2] != color:
+                                piece.append((row + ch_r, col + ch_c))
                     self.valid_moves[row][col] = piece
         return self.valid_moves
 
     def _draw_pos_moves(self, row, col):
+        '''
+        Во время хода рисует возможные ходы выбранной фигуры на доске
+
+        :param row: Ряд выбранной фигуры
+        :param col: Столбец выбранной фигуры
+        :return: None
+        '''
         for (pos_c, pos_r) in self.valid_moves[row][col]:
             if 0 <= pos_r <= 7 and 0 <= pos_c <= 7:
                 if self.board[pos_c][pos_r] == "No_piece" or \
-                        (self.board[pos_c][pos_r][0] == "s" and self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]][0] != "p"):
+                        (self.board[pos_c][pos_r][0] == "s" and
+                         self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]][0] != "p"):
                     self.canvas.create_oval(pos_r * 80 + 30, pos_c * 80 + 30, pos_r * 80 + 50, pos_c * 80 + 50,
                                             fill="#829769", outline="#829769")
                 else:
@@ -439,12 +535,20 @@ class Chess:
                                                pos_c * 80 + c, fill="#829769", outline="#829769")
                     self.canvas.create_polygon(pos_r * 80, (pos_c + 1) * 80, pos_r * 80, (pos_c + 1) * 80 - c,
                                                pos_r * 80 + c, (pos_c + 1) * 80, fill="#829769", outline="#829769")
-                    self.canvas.create_polygon((pos_r + 1) * 80, (pos_c + 1) * 80, (pos_r + 1) * 80, (pos_c + 1) * 80 - c,
-                                               (pos_r + 1) * 80 - c, (pos_c + 1) * 80, fill="#829769", outline="#829769")
+                    self.canvas.create_polygon((pos_r + 1) * 80, (pos_c + 1) * 80, (pos_r + 1) * 80,
+                                               (pos_c + 1) * 80 - c,
+                                               (pos_r + 1) * 80 - c, (pos_c + 1) * 80, fill="#829769",
+                                               outline="#829769")
                     self.canvas.create_polygon((pos_r + 1) * 80, pos_c * 80, (pos_r + 1) * 80 - c, pos_c * 80,
                                                (pos_r + 1) * 80, pos_c * 80 + c, fill="#829769", outline="#829769")
 
     def _on_click(self, event):
+        '''
+        Обрабатывает событие клика кнопкой мыши по доске
+
+        :param event: Координаты события клика
+        :return: None
+        '''
         col = event.x // 80
         row = event.y // 80
 
@@ -464,7 +568,8 @@ class Chess:
                     self.selected_piece_pos = (row, col)
                     self.canvas.delete("all")
                     self._draw_board()
-                    self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
+                    self.canvas.create_rectangle(col * 80, row * 80, (col + 1) * 80, (row + 1) * 80, fill="#829769",
+                                                 outline="#829769")
                     self._draw_piece(row, col)
                     self._draw_pos_moves(row, col)
 
@@ -475,7 +580,8 @@ class Chess:
             elif piece[2] == self.current_player[0]:
                 self.canvas.delete("all")
                 self._draw_board()
-                self.canvas.create_rectangle(col*80, row*80, (col+1)*80, (row+1)*80, fill="#829769", outline="#829769")
+                self.canvas.create_rectangle(col * 80, row * 80, (col + 1) * 80, (row + 1) * 80, fill="#829769",
+                                             outline="#829769")
                 try:
                     self._draw_piece(row, col)
                 except UnknownPiece:
@@ -499,9 +605,17 @@ class Chess:
                     else:
                         print("No king on board")
 
-
     def _make_move(self, row, col):
-        if 0 <= self.selected_piece_pos[0] < 8 and 0 <= self.selected_piece_pos[1] < 8:
+        '''
+        Выполняет ход выбранной фигурой на выбранную клетку, проверяет на условия завершения игры и обновляет доску
+
+        :param row: Ряд, в который перемещается выбранная фигура
+        :param col: Столбец, в который перемещается выбранная фигура
+        :return: None
+        :raises PieceNotOnBoard: Если выбранная фигура или конечная клетка за пределами доски
+        '''
+        if 0 <= self.selected_piece_pos[0] < 8 and 0 <= self.selected_piece_pos[
+            1] < 8 and 0 <= row < 8 and 0 <= col < 8:
             piece = self.board[self.selected_piece_pos[0]][self.selected_piece_pos[1]]
             for r in range(8):
                 for c in range(8):
@@ -513,29 +627,30 @@ class Chess:
                     self.board[piece_pos[0] - 1][piece_pos[1]] = "s_white"
                 else:
                     self.board[piece_pos[0] + 1][piece_pos[1]] = "s_black"
-                self.en_passant_target = (piece_pos[0] + 2, piece_pos[1]) if self.board[piece_pos[0]][piece_pos[1]][2] == "b" \
+                self.en_passant_target = (piece_pos[0] + 2, piece_pos[1]) if self.board[piece_pos[0]][piece_pos[1]][
+                                                                                 2] == "b" \
                     else (piece_pos[0] - 2, piece_pos[1])
             if self.board[row][col][0] == "s" and piece[0] == "p":
                 self.board[self.en_passant_target[0]][self.en_passant_target[1]] = "No_piece"
             if self.selected_piece_pos == self.w_king_pos:
                 if col - self.w_king_pos[1] == 2:
                     self.w_king_pos = (row, col)
-                    self.board[row][col-1] = "r_white"
+                    self.board[row][col - 1] = "r_white"
                     self.board[row][7] = "No_piece"
                 elif col - self.w_king_pos[1] == -2:
                     self.w_king_pos = (row, col)
-                    self.board[row][col+1] = "r_white"
+                    self.board[row][col + 1] = "r_white"
                     self.board[row][0] = "No_piece"
                 self.w_king_pos = (row, col)
                 self.king_moved[1] = True
             elif self.selected_piece_pos == self.b_king_pos:
                 if col - self.b_king_pos[1] == 2:
                     self.b_king_pos = (row, col)
-                    self.board[row][col-1] = "r_black"
+                    self.board[row][col - 1] = "r_black"
                     self.board[row][7] = "No_piece"
                 elif col - self.b_king_pos[1] == -2:
                     self.b_king_pos = (row, col)
-                    self.board[row][col+1] = "r_black"
+                    self.board[row][col + 1] = "r_black"
                     self.board[row][0] = "No_piece"
                 self.b_king_pos = (row, col)
                 self.king_moved[0] = True
@@ -568,6 +683,12 @@ class Chess:
             raise PieceNotOnBoard
 
     def _highlight_checked_king(self):
+        '''
+        Выделяет короля, который находится под шахом
+
+        :return: None
+        :raises PieceNotOnBoard: Если король находится за пределами доски
+        '''
         king_on_check = (0, 0)
         if self._is_square_under_attack(self.w_king_pos[0], self.w_king_pos[1], 'w'):
             king_on_check = self.w_king_pos
@@ -581,15 +702,30 @@ class Chess:
         else:
             raise PieceNotOnBoard
 
-    def _is_square_under_attack(self, row, col, color):
+    def _is_square_under_attack(self, row, col, color) -> bool:
+        '''
+        Проверяет, находится ли клетка под атакой фигуры противника
+
+        :param row: Ряд клетки для проверки
+        :param col: Столбец клетки для проверки
+        :param color: Цвет фигуры на проверяемой клетке
+        :return: Находится ли фигура под атакой
+        '''
         opp_col = "b" if color == "w" else "w"
         for brd_r in range(8):
             for brd_c in range(8):
-                if self.board[brd_r][brd_c][2] == opp_col and (row, col) in self.valid_moves[brd_r][brd_c]:
+                if self.board[brd_r][brd_c][2] == opp_col and (row, col) in self.valid_moves[brd_r][brd_c] and \
+                        self.board[row][col] != "No_piece":
                     return True
         return False
 
     def _simulate(self, player):
+        '''
+        Исключает ходы, приводящие к шаху собственного короля
+
+        :param player: Цвет игрока для проверки
+        :return: None
+        '''
         if player == "w" or player == "b":
             valid_after_simulate = [[[] for _ in range(8)] for _ in range(8)]
             for row in range(8):
@@ -612,18 +748,29 @@ class Chess:
                                     valid_after_simulate[row][col].append(move)
                             elif not self._is_square_under_attack(self.b_king_pos[0], self.b_king_pos[1], "b"):
                                 valid_after_simulate[row][col].append(move)
-                        self.board[row][col], self.board[row_move][col_move] = self.board[row_move][col_move], on_cell_piece
+                        self.board[row][col], self.board[row_move][col_move] = self.board[row_move][
+                            col_move], on_cell_piece
                         self._valid_moves()
             self.valid_moves = valid_after_simulate
 
-    def _no_moves(self):
+    def _no_moves(self) -> bool:
+        '''
+        Проверяет, может ли игрок сделать ход
+
+        :return: True если игрок не может сделать ход
+        '''
         for row in range(8):
             for col in range(8):
                 if self.board[row][col][2] == self.current_player[0] and self.valid_moves[row][col] != []:
                     return False
         return True
 
-    def _is_mate(self):
+    def _is_mate(self) -> bool:
+        '''
+        Проверяет, получил ли ходящий игрок мат
+
+        :return: True если игрок получил мат
+        '''
         king = self.w_king_pos if self.current_player == "white" else self.b_king_pos
         if self._is_square_under_attack(king[0], king[1], self.current_player[0]) and self._no_moves():
             self._stop_timer()
@@ -631,7 +778,12 @@ class Chess:
             return True
         return False
 
-    def _is_stalemate(self):
+    def _is_stalemate(self) -> bool:
+        '''
+        Проверяет, является ли позиция игрока патовой
+
+        :return: True если позиция патовая
+        '''
         king = self.w_king_pos if self.current_player == "white" else self.b_king_pos
         if not self._is_square_under_attack(king[0], king[1], self.current_player[0]) and self._no_moves():
             self._stop_timer()
@@ -640,6 +792,12 @@ class Chess:
         return False
 
     def _show_end_game_dialog(self, message):
+        '''
+        Создаёт окно завершения игры, останавливает таймеры игроков
+
+        :param message: Сообщение, которое необходимо вывести в окне завершения игры
+        :return: None
+        '''
         self._stop_timer()
         end_window = tk.Toplevel(self.board_window)
         end_window.title("Игра окончена")
@@ -663,7 +821,7 @@ class Chess:
 
         end_window.geometry(f"{win_width}x{win_height}+{x}+{y}")
 
-        end_window.grab_set() #Не даёт взаимодействовать с доской
+        end_window.grab_set()  #Не даёт взаимодействовать с доской
 
         tk.Label(
             end_window,
@@ -686,19 +844,36 @@ class Chess:
         end_window.focus_set()
 
     def _restart_game(self, end_window):
+        '''
+        Перезапускает игру (возвращает к окну настройки)
+
+        :param end_window: окно, которое необходимо закрыть вместе с доской
+        :return: None
+        '''
         self._stop_timer()
         end_window.destroy()
         self.board_window.destroy() if end_window != self.board_window else None
 
-        self.__init__(self.paths, self.time_limit)
+        self.__init__()
         self._setting()
 
-    def _format_time(self, seconds):
+    def _format_time(self, seconds) -> str:
+        '''
+        Форматирует время (формат ММ:СС)
+
+        :param seconds: Количество секунд
+        :return: Отформатированное время
+        '''
         mins = seconds // 60
         secs = seconds % 60
         return f"{mins:02d}:{secs:02d}"
 
     def _update_timer(self):
+        '''
+        Каждую секунду обновляет таймер игроков
+
+        :return: None
+        '''
         if self.player_time[self.current_player] > 0:
             self.player_time[self.current_player] -= 1
             self.timer_labels[self.current_player].config(text=self._format_time(self.player_time[self.current_player]))
@@ -711,37 +886,64 @@ class Chess:
         self.after_id = self.board_window.after(1000, self._update_timer)
 
     def _start_timer(self):
-        """Запускает таймер для текущего игрока."""
+        '''
+        Запускает таймер для текущего игрока
+
+        :return: None
+        '''
         if not self.timer_running:
             self.timer_running = True
             self._update_timer()
 
     def _stop_timer(self):
-        """Останавливает таймер (при переходе хода или окончании игры)."""
+        '''
+        Останавливает таймер (при переходе хода или окончании игры)
+
+        :return: None
+        '''
         if self.timer_running and self.after_id is not None:
             self.board_window.after_cancel(self.after_id)
             self.after_id = None
             self.timer_running = False
 
     def _castle(self):
+        '''
+        Проверяет на возможность выполнения рокировки
+
+        :return: None
+        '''
         for c in 0, 1:
             color = "w" if c == 1 else "b"
-            if not(self.rook_moved[c][0] or self.king_moved[c]) and \
-                    all(x == "No_piece" for x in self.board[c*7][1:4]) and \
-                    all(not(self._is_square_under_attack(c*7, x, color)) for x in (2, 3, 4)):
-                self.valid_moves[c*7][4].append((c*7, 2))
-            if not(self.rook_moved[c][1] or self.king_moved[c]) and \
-                    all(x == "No_piece" for x in self.board[c*7][5:7]) and \
-                    all(not(self._is_square_under_attack(c*7, x, color)) for x in (4, 5 ,6)):
+            if not (self.rook_moved[c][0] or self.king_moved[c]) and \
+                    all(x == "No_piece" for x in self.board[c * 7][1:4]) and \
+                    all(not (self._is_square_under_attack(c * 7, x, color)) for x in (2, 3, 4)):
+                self.valid_moves[c * 7][4].append((c * 7, 2))
+            if not (self.rook_moved[c][1] or self.king_moved[c]) and \
+                    all(x == "No_piece" for x in self.board[c * 7][5:7]) and \
+                    all(not (self._is_square_under_attack(c * 7, x, color)) for x in (4, 5, 6)):
                 self.valid_moves[c * 7][4].append((c * 7, 6))
 
     def _promote(self, row, col):
+        '''
+        Выполняет превращение пешки при достижении последней горизонтали
+
+        :param row: Ряд клетки с пешкой
+        :param col: Столбец клетки с пешкой
+        :return: None
+        '''
         def select_piece(piece_type):
+            '''
+            Заменяет пешку на выбранную фигуру и проводит все необходимые проверки
+
+            :param piece_type: Выбранная фигура
+            :return: None
+            '''
             new_piece = f"{piece_type[0] if piece_type != "knight" else "n"}_{color}"
             self.board[row][col] = new_piece
             self._valid_moves()
             opponent_king = self.b_king_pos if color == "white" else self.w_king_pos
-            is_check = self._is_square_under_attack(opponent_king[0], opponent_king[1], "b" if color == "white" else "w")
+            is_check = self._is_square_under_attack(opponent_king[0], opponent_king[1],
+                                                    "b" if color == "white" else "w")
             self.canvas.delete("all")
             self._draw_board()
 
@@ -777,7 +979,13 @@ class Chess:
             promote_window.focus_set()
 
     def run(self):
+        '''
+        Запускает игру и главный цикл
+
+        :return: None
+        '''
         self._setting()
+
 
 if __name__ == "__main__":
     paths = input('Введите относительный путь папки, где находятся фигуры\nПо умолчанию папка называется "pieces"\n-> ')
