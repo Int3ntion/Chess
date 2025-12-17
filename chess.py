@@ -330,7 +330,7 @@ class Chess:
                 for piece in piece_names:
                     img_path = f"{self.path}/{color}_{piece}.png"
                     img = Image.open(img_path)
-                    img = img.resize((80, 80), Image.Resampling.LANCZOS)
+                    img = img.resize((80, 80))
                     images[f"{color}_{piece}"] = ImageTk.PhotoImage(img)
         except FileNotFoundError:
             raise CantFindImages
@@ -672,8 +672,7 @@ class Chess:
                     self.board[piece_pos[0] - 1][piece_pos[1]] = "s_white"
                 else:
                     self.board[piece_pos[0] + 1][piece_pos[1]] = "s_black"
-                self.en_passant_target = (piece_pos[0] + 2, piece_pos[1]) if self.board[piece_pos[0]][piece_pos[1]][
-                                                                                 2] == "b" \
+                self.en_passant_target = (piece_pos[0] + 2, piece_pos[1]) if self.board[piece_pos[0]][piece_pos[1]][2] == "b" \
                     else (piece_pos[0] - 2, piece_pos[1])
             if self.board[row][col][0] == "s" and piece[0] == "p":
                 self.board[self.en_passant_target[0]][self.en_passant_target[1]] = "No_piece"
@@ -854,19 +853,16 @@ class Chess:
         end_window.update_idletasks()
         board_window = self.board_window
 
-        win_width = end_window.winfo_width()
-        win_height = end_window.winfo_height()
-
         board_x = board_window.winfo_x()
         board_y = board_window.winfo_y()
         board_width = board_window.winfo_width()
         board_height = board_window.winfo_height()
         end_window.protocol("WM_DELETE_WINDOW", lambda: None)
 
-        x = board_x + (board_width - win_width) // 2
-        y = board_y + (board_height - win_height) // 2
+        x = board_x + (board_width - 300) // 2
+        y = board_y + (board_height - 150) // 2
 
-        end_window.geometry(f"{win_width}x{win_height}+{x}+{y}")
+        end_window.geometry(f"300x150+{x}+{y}")
 
         end_window.grab_set()  #Не даёт взаимодействовать с доской
 
@@ -1016,7 +1012,6 @@ class Chess:
                 )
                 btn.grid(row=0, column=i, padx=5, pady=5)
             promote_window.grab_set()
-            promote_window.focus_set()
 
 
 if __name__ == "__main__":
