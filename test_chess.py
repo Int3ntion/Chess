@@ -18,16 +18,16 @@ def test_init_board():
     assert chess.board[7][2] == "b_white"
 
 def test_setting():
-    mock_tk = MagicMock()
-    mock_label_1 = MagicMock()
-    mock_label_2 = MagicMock()
-    mock_entry = MagicMock()
-    mock_button = MagicMock()
+    mock_tk = Mock()
+    mock_label_1 = Mock()
+    mock_label_2 = Mock()
+    mock_entry = Mock()
+    mock_button = Mock()
 
-    tk.Tk = MagicMock(return_value=mock_tk)
-    tk.Label = MagicMock(side_effect=[mock_label_1, mock_label_2])
-    tk.Entry = MagicMock(return_value=mock_entry)
-    tk.Button = MagicMock(return_value=mock_button)
+    tk.Tk = Mock(return_value=mock_tk)
+    tk.Label = Mock(side_effect=[mock_label_1, mock_label_2])
+    tk.Entry = Mock(return_value=mock_entry)
+    tk.Button = Mock(return_value=mock_button)
 
     app = Chess()
     app.setting()
